@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from framework.optimizers import TPE
+from optimizers.tpe import TPE
 
 
 def __run_episode(env_, agent, episode):
