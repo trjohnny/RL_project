@@ -23,7 +23,7 @@ def main(arguments):
         print(f"No algorithm named \"{arguments.algo}\" available")
         return
 
-    rl_utils.train_agent(env, agent, arguments.episodes, arguments.hyperopt)
+    agent.train_agent(env, arguments.episodes, arguments.hyperopt)
 
     # Close the environment
     env.close()

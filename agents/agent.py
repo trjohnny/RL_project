@@ -28,6 +28,7 @@ class Agent(ABC):
         self.units_per_layer_critic = units_per_layer_critic
         self.activation_actor = activation_actor
         self.activation_critic = activation_critic
+
         self.actor = self.__get_actor()
         self.critic = self.__get_critic()
 

@@ -2,7 +2,7 @@ from abc import ABC
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras import layers, Model
-from agent import Agent
+from agents.agent import Agent
 
 
 class A2CDiscreteActor(Model):
