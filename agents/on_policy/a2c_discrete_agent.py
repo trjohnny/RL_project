@@ -44,28 +44,28 @@ class A2CDiscreteAgent(Agent):
 
     def __get_actor(self):
         input_layer = layers.Input(shape=self.state_shape)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer)
+        hidden_layer = layers.Dense(64, activation='relu')(input_layer)
+        hidden_layer = layers.Dense(64, activation='relu')(hidden_layer)
 
-        self.final_layers = []
+        final_layers = []
         for i in range(self.action_shape[0]):
-            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
-                layers.Dense(64, activation='relu')(self.hidden_layer)))
+            final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
+                layers.Dense(64, activation='relu')(hidden_layer)))
 
-        self.policy = Model(inputs=self.input_layer, outputs=self.final_layers)
+        policy = Model(inputs=input_layer, outputs=final_layers)
 
-        return A2CDiscreteActor(self.policy)
+        return A2CDiscreteActor(policy)
 
     def __get_critic(self):
         # State as input
         input_layer = layers.Input(shape=self.state_shape)
 
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer)
+        hidden_layer = layers.Dense(64, activation='relu')(input_layer)
+        hidden_layer = layers.Dense(64, activation='relu')(hidden_layer)
 
-        self.output_layer = layers.Dense(self.action_shape[0])(self.hidden_layer)
+        output_layer = layers.Dense(self.action_shape[0])(hidden_layer)
 
-        return Model(inputs=self.input_layer, outputs=self.output_layer)
+        return Model(inputs=input_layer, outputs=output_layer)
 
     def act(self, state):
 
@@ -86,7 +86,7 @@ class A2CDiscreteAgent(Agent):
 
             pre_means = self.actor(state)  # array of tensors
             # pre_means is a vector of tensors, each tensor is a vector of probabilities
-            means, std_devs = self.calculate_means_stds(pre_means)
+
             value = self.critic(state)
             next_value = self.critic(next_state)
 
