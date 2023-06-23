@@ -86,7 +86,6 @@ class A2CDiscreteAgent(Agent):
 
             pre_means = self.actor(state)  # array of tensors
             # pre_means is a vector of tensors, each tensor is a vector of probabilities
-            means, std_devs = self.calculate_means_stds(pre_means)
             value = self.critic(state)
             next_value = self.critic(next_state)
 
