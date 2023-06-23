@@ -1,6 +1,4 @@
-from abc import ABC
-
-from agent import Agent
+from agents.agent import Agent
 import numpy as np
 import tensorflow as tf
 from replay_buffer import ReplayBuffer
@@ -35,7 +33,7 @@ class OUActionNoise:
             pass
 
 
-class DDPGAgent(Agent, ABC):
+class DDPGAgent(Agent):
     def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000_000, batch_size=64,
                  start_training=0, noise_std=.2):
 
