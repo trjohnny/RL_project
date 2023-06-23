@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from abc import ABC
 import tensorflow as tf
+import numpy as np
+from optimizers.tpe import TPE
+from optimizers import hyperparameters as hyp
 
 
 class Agent(ABC):
@@ -58,8 +61,7 @@ class Agent(ABC):
     def train(self, state, action, reward, next_state, done):
         pass
 
-    @staticmethod
-    def __run_episode(env):
+    def __run_episode(self, env, episode):
         state, info = env.reset()
 
         state = np.concatenate([state['observation'][:6], state['desired_goal']], dtype=np.float32)
@@ -100,8 +102,7 @@ class Agent(ABC):
 
         return total_reward
 
-    @staticmethod
-    def train_agent(env, episodes, hyperopt=False, verbose=0):
+    def train_agent(self, env, episodes, hyperopt=False, verbose=0):
         rewards = []
         mod = episodes - 1
         if verbose == 1:
@@ -115,11 +116,12 @@ class Agent(ABC):
         if hyperopt:
             optimizer = TPE(self.__class__, hyp.get_hyp("placeholder"))
             trials, EIs = optimizer.fmin()
+            # Print cool stuff of trials and EIs
             return
 
         for episode in range(1, episodes + 1):
 
-            reward = self.__run_episode(env)
+            reward = self.__run_episode(env, episode)
 
             if reward is not None:
                 rewards.append(reward)
