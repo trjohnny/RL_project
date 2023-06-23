@@ -164,8 +164,6 @@ class TPE:
 
             trials = np.append(trials, np.array([result]), axis=0)
 
-            y = trials[:, -1]
-
             EIs.append(EI)
 
         return trials, EIs

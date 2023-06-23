@@ -1,6 +1,5 @@
 import argparse
 import gymnasium as gym
-from utils import rl_utils
 from agents.on_policy.a2c_agent import A2CAgent
 from agents.off_policy.ddpg_agent import DDPGAgent
 
