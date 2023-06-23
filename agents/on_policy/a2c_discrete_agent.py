@@ -44,13 +44,13 @@ class A2CDiscreteAgent(Agent):
 
     def __get_actor(self):
         input_layer = layers.Input(shape=self.state_shape)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
 
         self.final_layers = []
         for i in range(self.action_shape[0]):
             self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
-                layers.Dense(64, activation='relu')(self.hidden_layer)))
+                layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)))
 
         self.policy = Model(inputs=self.input_layer, outputs=self.final_layers)
 
@@ -60,8 +60,8 @@ class A2CDiscreteAgent(Agent):
         # State as input
         input_layer = layers.Input(shape=self.state_shape)
 
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.hidden_layer)
 
         self.output_layer = layers.Dense(self.action_shape[0])(self.hidden_layer)
 

@@ -6,7 +6,7 @@ from tensorflow.python.keras import layers, Model
 from agent import Agent
 
 
-class A2CDiscreteActor(Model):
+class A2CNStepAheadActor(Model):
     def __init__(self, policy_model, log_std, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.policy_model = policy_model
@@ -31,7 +31,7 @@ class A2CDiscreteActor(Model):
         return means, std_devs
 
 
-class A2CDiscreteAgent(Agent):
+class A2CNStepAheadAgent(Agent):
     def __init__(self, *agent_params, n_steps=5, entropy_coeff=1e-2):
         super().__init__(*agent_params)
 
@@ -47,9 +47,9 @@ class A2CDiscreteAgent(Agent):
     def __get_actor(self):
         self.input_layer = layers.Input(shape=self.state_shape)
 
-        self.hidden_layer = layers.Dense(80, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(80, activation='relu')(self.hidden_layer)
-        self.hidden_layer_m = layers.Dense(80, activation='relu')(self.hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
+        self.hidden_layer_m = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
 
         self.means = layers.Dense(self.action_shape[0], activation='tanh')(self.hidden_layer_m)
 
@@ -66,28 +66,27 @@ class A2CDiscreteAgent(Agent):
         # State as input
         self.input_layer = layers.Input(shape=self.state_shape)
 
-        self.hidden_layer = layers.Dense(80, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(80, activation='relu')(self.hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.hidden_layer)
 
         self.output_layer = layers.Dense(self.action_shape[0])(self.hidden_layer)
 
         self.value_function = Model(inputs=self.input_layer, outputs=self.output_layer)
         return self.value_function
 
-
     def act(self, state):
         means, std_devs = self.actor(state)
         action = np.random.normal(loc=means, scale=std_devs)
         return action.flatten()
 
-    def n_step_reward(self, n_steps, curr_state, done, reward, env, agent):
+    def n_step_reward(self, curr_state, done, reward, env, agent):
 
         state_id = env.save_state()
         curr_gamma = self.gamma
         n_step_reward = reward
         actual_steps = 0
 
-        for i in range(n_steps - 1):
+        for i in range(self.n_steps - 1):
 
             if done:
                 break
@@ -95,10 +94,14 @@ class A2CDiscreteAgent(Agent):
             action = agent.act(tf.convert_to_tensor([curr_state], dtype='float32'))
             curr_state, reward, done, _, _ = env.step(action)
 
-            reward -= 0.5 * np.linalg.norm(curr_state['observation'][:3] - curr_state['achieved_goal'])
-            reward -= 0.1 * np.linalg.norm(action) ** 2
+            if env.unwrapped.spec.id == "PandaPushDense-v3":
+                reward -= 0.5 * np.linalg.norm(curr_state['observation'][:3] - curr_state['achieved_goal'])
+                reward -= 0.1 * np.linalg.norm(action) ** 2
 
-            curr_state = np.concatenate([curr_state['observation'][:9], curr_state['desired_goal']], dtype=np.float32)
+            if env.unwrapped.spec.id == "PandaPushDense-v3":
+                curr_state = np.concatenate([curr_state['observation'][:9], curr_state['desired_goal']], dtype=np.float32)
+            else:
+                curr_state = np.concatenate([curr_state['observation'][:6], curr_state['desired_goal']], dtype=np.float32)
 
             n_step_reward += curr_gamma * tf.convert_to_tensor(reward, dtype='float32')
 
@@ -118,7 +121,6 @@ class A2CDiscreteAgent(Agent):
 
             pre_means = self.actor(state)  # array of tensors
             # pre_means is a vector of tensors, each tensor is a vector of probabilities
-            means, std_devs = self.calculate_means_stds(pre_means)
             value = self.critic(state)
             next_value = self.critic(next_state)
 
@@ -160,9 +162,63 @@ class A2CDiscreteAgent(Agent):
         del tape
 
     def train(self, state, action, reward, next_state, done):
-        state = tf.convert_to_tensor(state, dtype=tf.float32)
-        action = tf.convert_to_tensor(action, dtype=tf.float32)
-        reward = tf.convert_to_tensor(reward, dtype=tf.float32)
-        next_state = tf.convert_to_tensor([next_state], dtype=tf.float32)
-        done = tf.convert_to_tensor(done, dtype=tf.float32)
-        self.__train(state, action, reward, next_state, done)
+        return
+
+
+    def __run_episode(self, env, episode):
+        state, info = env.reset()
+
+        if env.unwrapped.spec.id == "PandaPushDense-v3":
+            state = np.concatenate([state['observation'][:9], state['desired_goal']], dtype=np.float32)
+        else:
+            state = np.concatenate([state['observation'][:6], state['desired_goal']], dtype=np.float32)
+
+        state = tf.convert_to_tensor([state], dtype='float32')
+
+        total_reward = 0
+        done = False
+        num_step = 0
+
+        while not done and num_step < 50:
+            action = self.act(state)
+            next_state, reward, done, truncated, info = env.step(action)
+
+            if done and num_step <= 2:
+                return None
+
+            if done:
+                agent.n_done += 1
+
+            if env.unwrapped.spec.id == "PandaPushDense-v3":
+                reward -= 0.5 * np.linalg.norm(next_state['observation'][:3] - next_state['achieved_goal'])
+
+                reward -= 0.1 * np.linalg.norm(action) ** 2
+
+            next_state = np.concatenate([next_state['observation'][:9], next_state['desired_goal']], dtype=np.float32)
+
+            action = tf.convert_to_tensor(action, dtype='float32')
+            reward = tf.convert_to_tensor(reward, dtype='float32')
+
+            n_steps_reward, done_cur, n_step_state, actual_steps = self.n_step_reward(next_state, done, reward,
+                                                                                      env, agent)
+
+            next_state = tf.convert_to_tensor([next_state], dtype='float32')
+            n_step_state = tf.convert_to_tensor(n_step_state, dtype='float32')
+            n_steps_reward = tf.convert_to_tensor(n_steps_reward, dtype='float32')
+
+            train(state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, actual_steps + 1)
+            state = next_state
+            total_reward += reward
+            num_step += 1
+
+            if done:
+                print(f"DONE! steps: {num_step}")
+
+        if not done:
+            agent.finished = episode
+
+        return total_reward
+
+    def train_agent(self, env, episodes, hyperopt=False, verbose=0):
+        env = env.env  # block the truncated
+        return self.train_agent(env, episodes, hyperopt, verbose)
