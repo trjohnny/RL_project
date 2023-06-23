@@ -35,7 +35,7 @@ class A2CActor(Model):
         return means, std_devs
 
 
-class A2CAgent(Agent, ABC):
+class A2CAgent(Agent):
     def __init__(self, *agent_params, std_state_dependent=True, log_std_init=.5, entropy_coeff=1e-2):
         super().__init__(*agent_params)
 

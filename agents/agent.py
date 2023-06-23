@@ -1,8 +1,6 @@
 from abc import abstractmethod
 from abc import ABC
 import tensorflow as tf
-
-
 class Agent(ABC):
     def __init__(self,
                  n_states,
@@ -28,6 +26,8 @@ class Agent(ABC):
         self.units_per_layer_critic = units_per_layer_critic
         self.activation_actor = activation_actor
         self.activation_critic = activation_critic
+        self.actor = self.__get_actor()
+        self.critic = self.__get_critic()
 
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
@@ -40,11 +40,11 @@ class Agent(ABC):
         self.dones = 0
 
     @abstractmethod
-    def get_actor(self):
+    def __get_actor(self):
         pass
 
     @abstractmethod
-    def get_critic(self):
+    def __get_critic(self):
         pass
 
     @abstractmethod
