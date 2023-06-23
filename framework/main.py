@@ -1,8 +1,8 @@
 import argparse
 import gymnasium as gym
 import rl_utils
-from agents.on_policy.a2c_agent import A2CAgent
-from agents.off_policy.ddpg_agent import DDPGAgent
+from framework.agents.on_policy.a2c_agent import A2CAgent
+from framework.agents.off_policy import DDPGAgent
 
 
 def main(arguments):
