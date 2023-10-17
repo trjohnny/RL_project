@@ -1,3 +1,4 @@
+from abc import ABC
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras import layers, Model
@@ -47,28 +48,28 @@ class A2CDiscreteAgent(Agent):
 
     def get_actor(self):
         input_layer = layers.Input(shape=self.state_shape)
-        hidden_layer = layers.Dense(64, activation='relu')(input_layer)
-        hidden_layer = layers.Dense(64, activation='relu')(hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
 
-        final_layers = []
+        self.final_layers = []
         for i in range(self.action_shape[0]):
-            final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
-                layers.Dense(64, activation='relu')(hidden_layer)))
+            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
+                layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)))
 
-        policy = Model(inputs=input_layer, outputs=final_layers)
+        self.policy = Model(inputs=self.input_layer, outputs=self.final_layers)
 
-        return A2CDiscreteActor(policy)
+        return A2CDiscreteActor(self.policy)
 
     def get_critic(self):
         # State as input
         input_layer = layers.Input(shape=self.state_shape)
 
-        hidden_layer = layers.Dense(64, activation='relu')(input_layer)
-        hidden_layer = layers.Dense(64, activation='relu')(hidden_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.hidden_layer)
 
-        output_layer = layers.Dense(self.action_shape[0])(hidden_layer)
+        self.output_layer = layers.Dense(self.action_shape[0])(self.hidden_layer)
 
-        return Model(inputs=input_layer, outputs=output_layer)
+        return Model(inputs=self.input_layer, outputs=self.output_layer)
 
     def act(self, state):
 
@@ -89,7 +90,6 @@ class A2CDiscreteAgent(Agent):
 
             pre_means = self.actor(state)  # array of tensors
             # pre_means is a vector of tensors, each tensor is a vector of probabilities
-
             value = self.critic(state)
             next_value = self.critic(next_state)
 

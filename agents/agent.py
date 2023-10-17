@@ -65,7 +65,10 @@ class Agent(ABC):
     def __run_episode(self, env, episode):
         state, info = env.reset()
 
-        state = np.concatenate([state['observation'][:6], state['desired_goal']], dtype=np.float32)
+        if env.unwrapped.spec.id == "PandaPushDense-v3":
+            state = np.concatenate([state['observation'][:9], state['desired_goal']], dtype=np.float32)
+        else:
+            state = np.concatenate([state['observation'][:6], state['desired_goal']], dtype=np.float32)
 
         state_tensor = tf.convert_to_tensor([state], dtype='float32')
 
