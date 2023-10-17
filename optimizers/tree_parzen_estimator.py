@@ -3,30 +3,20 @@ from scipy.stats import kstest
 import numpy as np
 from sklearn.neighbors import KernelDensity
 
+from optimizers.optimizer import Optimizer
 
-class TPE:
-    def __init__(self, Agent, hyperparameters_grid):
-        self.Agent = Agent
-        self.space = hyperparameters_grid
+
+class TPE(Optimizer):
+    def __init__(self, agent, hyperparameters_grid, n_seed=4, n_total=20, gamma=.2):
+        super().__init__(agent)
         self.n_samples_dist = 100
+        self.space = hyperparameters_grid
+        self.n_seed = n_seed
+        self.n_total = n_total
+        self.gamma = gamma
 
-    def objective(self, *hyperparameters):
-        # training the Agent
-
-        agent = self.Agent(*hyperparameters)
-        rewards1 = agent.train(agent, episodes=400)
-
-        agent = self.Agent(*hyperparameters)
-        rewards2 = agent.train(agent, episodes=400)
-
-        agent = self.Agent(*hyperparameters)
-        rewards3 = agent.train(agent, episodes=400)
-
-        # FIN = agent.finished
-        TOT_REW = (sum(rewards1) + sum(rewards2) + sum(rewards3)) / (3 * len(rewards1))
-        # DONE_RATIO = agent.dones / len(rewards1)
-
-        return -TOT_REW
+    def optimize(self, episodes):
+        return self.fmin(episodes, self.n_seed, self.n_total, self.gamma)
 
     @staticmethod
     def __best_fit_distribution(data):
@@ -85,7 +75,7 @@ class TPE:
 
         return hps, np.max(EI)
 
-    def sample_priors(self, n_samples):
+    def sample_priors(self, n_samples, episodes):
         """
         Consumes search space defined by priors and returns
         n_samples.
@@ -98,7 +88,7 @@ class TPE:
         seed = list(map(tuple, zip(*seed)))
 
         # Calculate objective for each pair in the seed
-        seed_obj = [self.objective(*hp) for hp in seed]
+        seed_obj = [self.objective(*hp, episodes=episodes) for hp in seed]
 
         # Combine the seed and seed_obj into a list of tuples
         trials = [(seed[i] + (seed_obj[i],)) for i in range(len(seed))]
@@ -129,10 +119,7 @@ class TPE:
 
         return l_kde, g_kde
 
-    def fmin(self, n_seed=4, n_total=50, gamma=.2):
-        return self.__fmin__(n_seed, n_total, gamma)
-
-    def __fmin__(self, n_seed, n_total, gamma):
+    def fmin(self, episodes, n_seed, n_total, gamma):
         """
         Consumes a hyperparameter search space, number of iterations for seeding
         and total number of iterations and performs Bayesian Optimization. TPE
@@ -142,7 +129,7 @@ class TPE:
         print(f"Starting first {n_seed} trials...")
 
         # Seed priors
-        trials = self.sample_priors(n_seed)
+        trials = self.sample_priors(n_seed, episodes)
         EIs = []
 
         # Not really sure if that ever will help
@@ -160,103 +147,10 @@ class TPE:
             hps, EI = self.choose_next_hps(l_kde, g_kde, self.n_samples_dist)
 
             # Evaluate with fn and add to trials
-            result = np.concatenate([hps, self.objective(*hps)])
+            result = np.concatenate([hps, self.objective(*hps, episodes=episodes)])
 
             trials = np.append(trials, np.array([result]), axis=0)
 
             EIs.append(EI)
 
         return trials, EIs
-
-
-class Choice:
-    """
-    Class encapsulates behavior for a uniform distribution alongside a set of objects.
-    """
-
-    def __init__(self, objects):
-        self.objects = objects
-
-    def sample(self, n_samples):
-        return np.random.choice(self.objects, n_samples)
-
-
-class Uniform:
-    """
-    Class encapsulates behavior for a uniform distribution.
-    """
-
-    def __init__(self, min_, max_):
-        self.min = min_
-        self.max = max_
-
-    def sample(self, n_samples):
-        return np.random.uniform(self.min, self.max, n_samples)
-
-
-class Normal:
-    """
-    Class encapsulates behavior for a normal distribution.
-    """
-
-    def __init__(self, mean_, std_):
-        self.mean = mean_
-        self.std = std_
-
-    def sample(self, n_samples):
-        return np.random.normal(self.mean, self.std, n_samples)
-
-
-class LogNormal:
-    """
-    Class encapsulates behavior for a lognormal distribution.
-    """
-
-    def __init__(self, mean_, std_):
-        self.mean = mean_
-        self.std = std_
-
-    def sample(self, n_samples):
-        return np.random.lognormal(self.mean, self.std, n_samples)
-
-
-class QUniform:
-    """
-    Class encapsulates behavior for a q_uniform distribution.
-    """
-
-    def __init__(self, min_, max_, step):
-        self.min = min_
-        self.max = max_
-        self.step = step
-
-    def sample(self, n_samples):
-        return np.around(np.random.uniform(self.min, self.max, n_samples) / self.step) * self.step
-
-
-class QNormal:
-    """
-    Class encapsulates behavior for a q_normal distribution.
-    """
-
-    def __init__(self, logmean, logstd, step):
-        self.logmean = logmean
-        self.logstd = logstd
-        self.step = step
-
-    def sample(self, n_samples):
-        return np.around(np.random.normal(self.logmean, self.logstd, n_samples) / self.step) * self.step
-
-
-class QLogNormal:
-    """
-    Class encapsulates behavior for a q_lognormal distribution.
-    """
-
-    def __init__(self, logmean, logstd, step):
-        self.logmean = logmean
-        self.logstd = logstd
-        self.step = step
-
-    def sample(self, n_samples):
-        return np.around(np.random.lognormal(self.logmean, self.logstd, n_samples) / self.step) * self.step

@@ -2,8 +2,6 @@ from abc import abstractmethod
 from abc import ABC
 import tensorflow as tf
 import numpy as np
-from optimizers.tpe import TPE
-from optimizers import hyperparameters as hyp
 
 
 class Agent(ABC):
@@ -12,15 +10,13 @@ class Agent(ABC):
                  n_actions,
                  lower_bound,
                  upper_bound,
-                 gamma=.95,
+                 gamma=.80,
                  actor_learning_rate=1e-3,
-                 critic_learning_rate=2e-3,
+                 critic_learning_rate=1e-3,
                  n_layers_actor=2,
                  n_layers_critic=2,
-                 units_per_layer_actor=256,
-                 units_per_layer_critic=256,
-                 activation_actor='relu',
-                 activation_critic='relu'):
+                 units_per_layer_actor=64,
+                 units_per_layer_critic=64):
 
         self.gamma = gamma
         self.state_shape = (n_states,)
@@ -29,11 +25,11 @@ class Agent(ABC):
         self.n_layers_critic = n_layers_critic
         self.units_per_layer_actor = units_per_layer_actor
         self.units_per_layer_critic = units_per_layer_critic
-        self.activation_actor = activation_actor
-        self.activation_critic = activation_critic
+        self.activation_actor = 'relu'
+        self.activation_critic = 'relu'
 
-        self.actor = self.__get_actor()
-        self.critic = self.__get_critic()
+        self.actor = self.get_actor()
+        self.critic = self.get_critic()
 
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
@@ -46,11 +42,16 @@ class Agent(ABC):
         self.dones = 0
 
     @abstractmethod
-    def __get_actor(self):
+    def get_actor(self):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_algo():
         pass
 
     @abstractmethod
-    def __get_critic(self):
+    def get_critic(self):
         pass
 
     @abstractmethod
@@ -77,10 +78,10 @@ class Agent(ABC):
             action = self.act(state_tensor)
 
             next_state, reward, done, truncated, info = env.step(action)
-            reward *= 100
+            reward *= 10
 
-            if done and num_step <= 1:
-                return None
+            #if done and num_step <= 1:
+                #return None
 
             if env.unwrapped.spec.id == "PandaPushDense-v3":
                 reward -= 0.5 * np.linalg.norm(next_state['observation'][:3] - next_state['achieved_goal'])
@@ -102,7 +103,7 @@ class Agent(ABC):
 
         return total_reward
 
-    def train_agent(self, env, episodes, hyperopt=False, verbose=0):
+    def train_agent(self, env, episodes, verbose=0):
         rewards = []
         mod = episodes - 1
         if verbose == 1:
@@ -111,13 +112,6 @@ class Agent(ABC):
             mod = 10
         elif verbose == 3:
             mod = 1
-
-        # Use hyperparameter optimization
-        if hyperopt:
-            optimizer = TPE(self.__class__, hyp.get_hyp("placeholder"))
-            trials, EIs = optimizer.fmin()
-            # Print cool stuff of trials and EIs
-            return
 
         for episode in range(1, episodes + 1):
 

@@ -1,7 +1,7 @@
 from agents.agent import Agent
 import numpy as np
 import tensorflow as tf
-from replay_buffer import ReplayBuffer
+from agents.off_policy.replay_buffer import ReplayBuffer
 from tensorflow.python.keras import Model, layers
 
 
@@ -34,6 +34,9 @@ class OUActionNoise:
 
 
 class DDPGAgent(Agent):
+    def get_algo(self):
+        pass
+
     def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000_000, batch_size=64,
                  start_training=0, noise_std=.2):
 
@@ -43,8 +46,8 @@ class DDPGAgent(Agent):
                                    std_deviation=float(noise_std) * np.ones(self.action_shape[0]))
         self.tau = tf.convert_to_tensor(tau, dtype=tf.float32)
 
-        self.actor = self.__get_actor()
-        self.critic = self.__get_critic()
+        self.actor = self.get_actor()
+        self.critic = self.get_critic()
 
         self.target_actor = tf.keras.models.clone_model(self.actor)
         self.target_critic = tf.keras.models.clone_model(self.critic)
@@ -59,7 +62,7 @@ class DDPGAgent(Agent):
         self.finished = 0
         self.dones = 0
 
-    def __get_actor(self):
+    def get_actor(self):
         # Initialize weights between -3e-3 and 3-e3
         last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
 
@@ -75,7 +78,7 @@ class DDPGAgent(Agent):
 
         return model
 
-    def __get_critic(self):
+    def get_critic(self):
         # State as input
         state_input = layers.Input(shape=self.state_shape)
         state_out = layers.Dense(16, activation="relu")(state_input)

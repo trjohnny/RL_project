@@ -28,11 +28,15 @@ class A2CDiscreteActor(Model):
 
 
 class A2CDiscreteAgent(Agent):
+    @staticmethod
+    def get_algo():
+        return 'A2C_DISCRETE'
+
     def __init__(self, *agent_params, discrete_values=50, entropy_coeff=1e-2):
         super().__init__(*agent_params)
 
-        self.actor = self.__get_actor()
-        self.critic = self.__get_critic()
+        self.actor = self.get_actor()
+        self.critic = self.get_critic()
 
         self.entropy_coefficient = entropy_coeff
         self.discrete_values = discrete_values
@@ -41,7 +45,7 @@ class A2CDiscreteAgent(Agent):
         self.finished = 0
         self.dones = 0
 
-    def __get_actor(self):
+    def get_actor(self):
         input_layer = layers.Input(shape=self.state_shape)
         hidden_layer = layers.Dense(64, activation='relu')(input_layer)
         hidden_layer = layers.Dense(64, activation='relu')(hidden_layer)
@@ -55,7 +59,7 @@ class A2CDiscreteAgent(Agent):
 
         return A2CDiscreteActor(policy)
 
-    def __get_critic(self):
+    def get_critic(self):
         # State as input
         input_layer = layers.Input(shape=self.state_shape)
 
