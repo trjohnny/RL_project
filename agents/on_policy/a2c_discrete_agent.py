@@ -6,6 +6,10 @@ from agents.agent import Agent
 
 
 class A2CDiscreteActor(Model):
+    @staticmethod
+    def get_algo():
+        return 'A2C_DISCRETE'
+    
     def __init__(self, policy_model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.policy_model = policy_model
@@ -28,18 +32,21 @@ class A2CDiscreteActor(Model):
         return res
 
 
-class A2CDiscreteAgent(Agent):
+class A2CDiscreteAgent(Agent): 
+
     @staticmethod
     def get_algo():
         return 'A2C_DISCRETE'
+    
+    def __init__(self, *agent_params, discrete_values=50, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
 
-    def __init__(self, *agent_params, discrete_values=50, entropy_coeff=1e-2):
-        super().__init__(*agent_params)
 
-        self.actor = self.get_actor()
-        self.critic = self.get_critic()
-
+        self.log_std_init = log_std_init
+        self.std_state_dependent = std_state_dependent 
         self.entropy_coefficient = entropy_coeff
+
+        super().__init__(*agent_params) 
+ 
         self.discrete_values = discrete_values
 
         # indices
@@ -47,7 +54,7 @@ class A2CDiscreteAgent(Agent):
         self.dones = 0
 
     def get_actor(self):
-        input_layer = layers.Input(shape=self.state_shape)
+        self.input_layer = layers.Input(shape=self.state_shape)
         self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
         self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
 
@@ -62,7 +69,7 @@ class A2CDiscreteAgent(Agent):
 
     def get_critic(self):
         # State as input
-        input_layer = layers.Input(shape=self.state_shape)
+        self.input_layer = layers.Input(shape=self.state_shape)
 
         self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.input_layer)
         self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.hidden_layer)

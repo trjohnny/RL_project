@@ -3,77 +3,101 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.initializers import Constant, Zeros
 from tensorflow.python.keras import layers, Model
-from agent import Agent
+from agents.agent import Agent
+from tensorflow import keras
 
 
-class A2CNStepAheadActor(Model):
-    def __init__(self, policy_model, log_std, *args, **kwargs):
+class A2CActor(keras.Model):
+     
+    
+    def __init__(self, policy, independent_log_stds, *args, **kwargs):
+
         super().__init__(*args, **kwargs)
-        self.policy_model = policy_model
-        self.log_std = log_std
-
-    def get_config(self):
-        super().get_config()
-        pass
-
-    def _serialize_to_tensors(self):
-        super()._serialize_to_tensors()
-        pass
-
-    def _restore_from_tensors(self, restored_tensors):
-        super()._restore_from_tensors(restored_tensors)
-        pass
+        self.policy = policy
+        self.independent_log_stds = independent_log_stds
 
     def call(self, inputs, training=None, mask=None):
-        means = self.policy(inputs)
-        std_devs = [tf.clip_by_value(tf.math.exp(log_std), 1e-3, 50) for log_std in self.log_std]
-        std_devs = tf.stack(std_devs)
+        if self.independent_log_stds is None:
+            means, std_devs = self.policy(inputs)
+            std_devs = tf.clip_by_value(tf.math.exp(std_devs), 1e-3, 50)
+        else:
+            means = self.policy(inputs)
+            std_devs = [tf.clip_by_value(tf.math.exp(logstd), 1e-3, 50) for logstd in self.independent_log_stds]
+            std_devs = tf.stack(std_devs)
         return means, std_devs
 
 
 class A2CNStepAheadAgent(Agent):
-    def __init__(self, *agent_params, n_steps=5, entropy_coeff=1e-2):
-        super().__init__(*agent_params)
 
-        self.actor = self.__get_actor()
-        self.critic = self.__get_critic()
-        self.n_steps = n_steps
+    @staticmethod
+    def get_algo():
+        return 'A2C_N_STEP_AHEAD'
+    
+    def __init__(self, *agent_params, n_steps=5, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
+
+
+        self.log_std_init = log_std_init
+        self.std_state_dependent = std_state_dependent
         self.entropy_coefficient = entropy_coeff
+
+        super().__init__(*agent_params)
+          
+        self.n_steps = n_steps 
 
         # indices
         self.finished = 0
         self.dones = 0
 
-    def __get_actor(self):
-        self.input_layer = layers.Input(shape=self.state_shape)
+    def get_actor(self):
+        input_layer = keras.layers.Input(shape=self.state_shape)
+        hidden = input_layer
 
-        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
-        self.hidden_layer_m = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
+        for i in range(int(self.n_layers_actor) if not self.std_state_dependent else int(self.n_layers_actor) - 1):
+            hidden = keras.layers.Dense(int(self.units_per_layer_actor), activation=self.activation_actor)(hidden)
 
-        self.means = layers.Dense(self.action_shape[0], activation='tanh')(self.hidden_layer_m)
+        if self.std_state_dependent:
+            hidden_m = keras.layers.Dense(int(self.units_per_layer_actor), activation=self.activation_actor)(hidden)
+        else:
+            hidden_m = hidden
 
-        self.logstds = []
-        for i in range(self.action_shape[0]):
-            self.logstds.append(self.add_weight(name=f'logstd_{i}',
-                                                    shape=(),
-                                                    initializer=Constant(-0.75),
-                                                    trainable=True))
-        self.policy = Model(inputs=self.input_layer, outputs=self.means)
-        return A2CDiscreteActor(self.policy)
+        means = keras.layers.Dense(self.action_shape[0], activation='tanh')(hidden_m)
+        independent_logstds = None
 
-    def __get_critic(self):
+        if self.std_state_dependent:
+            hidden_s = keras.layers.Dense(int(self.units_per_layer_actor), activation=self.activation_actor)(hidden)
+            dependent_logstds = keras.layers.Dense(self.action_shape[0],
+                                                   kernel_initializer=keras.initializers.Zeros(),
+                                                   bias_initializer=keras.initializers.Constant(self.log_std_init))(
+                hidden_s)
+            policy = keras.Model(inputs=input_layer, outputs=[means, dependent_logstds])
+
+        else:
+            independent_logstds = []
+            policy = keras.Model(inputs=input_layer, outputs=means)
+
+            for i in range(self.action_shape[0]):
+                independent_logstds.append(policy.add_weight(name=f'logstd_{i}',
+                                                             shape=(),
+                                                             initializer=keras.initializers.Constant(
+                                                                 self.log_std_init),
+                                                             trainable=True))
+
+        return A2CActor(policy, independent_logstds)
+
+    def get_critic(self):
         # State as input
-        self.input_layer = layers.Input(shape=self.state_shape)
+        input_layer = keras.layers.Input(shape=self.state_shape)
+        hidden = input_layer
 
-        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(self.units_per_layer_critic, activation='relu')(self.hidden_layer)
+        for i in range(int(self.n_layers_critic)):
+            hidden = keras.layers.Dense(int(self.units_per_layer_critic), activation=self.activation_critic)(hidden)
 
-        self.output_layer = layers.Dense(self.action_shape[0])(self.hidden_layer)
+        outputs = keras.layers.Dense(1)(hidden)
 
-        self.value_function = Model(inputs=self.input_layer, outputs=self.output_layer)
-        return self.value_function
+        # Outputs single value for give state-action
+        model = tf.keras.Model(input_layer, outputs)
 
+        return model
     def act(self, state):
         means, std_devs = self.actor(state)
         action = np.random.normal(loc=means, scale=std_devs)
@@ -115,47 +139,46 @@ class A2CNStepAheadAgent(Agent):
         return n_step_reward, done, tf.convert_to_tensor([curr_state]), actual_steps
 
     @tf.function
-    def __train(self, state, action, reward, next_state, done, grad_clip, entropy_coeff=0.00):
-        action_index = int(((action+1)*self.discrete_values)/2)
+    def __train(self, state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, n_steps, entropy_coeff=0.01, grad_clip = -1): 
         with tf.GradientTape(persistent=True) as tape:
-
-            pre_means = self.actor(state)  # array of tensors
-            # pre_means is a vector of tensors, each tensor is a vector of probabilities
+ 
+            means, std_devs = self.actor(state)
             value = self.critic(state)
-            next_value = self.critic(next_state)
-
-            indices = tf.stack([tf.range(pre_means.shape[0]), action_index], axis=1)
-            action_probability = tf.gather_nd(pre_means, indices)
-
-            advantage = reward + (1 - done) * self.gamma * next_value - value
-
+        
+            action_prob = tf.exp(-0.5 * tf.square((action - means) / std_devs)) / (std_devs * tf.sqrt(2. * np.pi))
+            action_prob = tf.reduce_prod(action_prob, axis=1, keepdims=True)
+            
+            n_step_value = (1 - done_cur) * self.critic(n_step_state)
+            
+            
+            advantage = n_steps_reward + (self.gamma**n_steps) * n_step_value - value
+            
             # Compute the entropy of the current policy
-            entropy = -tf.reduce_sum(pre_means * tf.math.log(pre_means + tf.keras.backend.epsilon()), axis=-1)
-
+            entropy = 0.5 * (tf.math.log(2 * np.pi * std_devs ** 2) + 1)
+            entropy = tf.reduce_sum(entropy, keepdims=True)
+            
             # Compute the actor loss
-            actor_loss = -tf.reduce_mean(tf.math.log(tf.maximum(action_probability, 5e-6)) * tf.stop_gradient(
-                advantage) + entropy_coeff * entropy)
+            actor_loss = -tf.reduce_mean(tf.math.log(tf.maximum(action_prob, 5e-6)) * tf.stop_gradient(advantage) + entropy_coeff * entropy)
 
-            # Compute the critic loss
-            critic_loss = tf.reduce_mean(
-                tf.square(tf.stop_gradient(reward + (1 - done) * self.gamma * next_value) - value))
+            # Compute the critic loss 
+            critic_loss = tf.reduce_mean(tf.square(tf.stop_gradient(n_steps_reward + (self.gamma**n_steps) * n_step_value) - value))
 
         # Compute and apply the gradients for the actor loss
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-
+        
         # Clip the gradients
         if grad_clip != -1:
             actor_grads, _ = tf.clip_by_global_norm(actor_grads, grad_clip)
-
+            
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
         # Compute and apply the gradients for the critic loss
         critic_grads = tape.gradient(critic_loss, self.critic.trainable_variables)
-
+        
         # Clip the gradients
         if grad_clip != -1:
             critic_grads, _ = tf.clip_by_global_norm(critic_grads, grad_clip)
-
+            
         self.critic_optimizer.apply_gradients(zip(critic_grads, self.critic.trainable_variables))
 
         # Clear the tape to free up resources
@@ -206,7 +229,7 @@ class A2CNStepAheadAgent(Agent):
             n_step_state = tf.convert_to_tensor(n_step_state, dtype='float32')
             n_steps_reward = tf.convert_to_tensor(n_steps_reward, dtype='float32')
 
-            train(state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, actual_steps + 1)
+            self.__train(state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, actual_steps + 1)
             state = next_state
             total_reward += reward
             num_step += 1
@@ -219,6 +242,6 @@ class A2CNStepAheadAgent(Agent):
 
         return total_reward
 
-    def train_agent(self, env, episodes, hyperopt=False, verbose=0):
+    def train_agent(self, env, episodes, verbose=0):
         env = env.env  # block the truncated
-        return self.train_agent(env, episodes, hyperopt, verbose)
+        return super().train_agent(env, episodes, verbose)
