@@ -5,29 +5,14 @@ from tensorflow.python.keras import layers, Model
 from agents.agent import Agent
 
 
-class A2CDiscreteActor(Model):
-    @staticmethod
-    def get_algo():
-        return 'A2C_DISCRETE'
+class A2CDiscreteActor(Model): 
     
     def __init__(self, policy_model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.policy_model = policy_model
-
-    def get_config(self):
-        super().get_config()
-        pass
-
-    def _serialize_to_tensors(self):
-        super()._serialize_to_tensors()
-        pass
-
-    def _restore_from_tensors(self, restored_tensors):
-        super()._restore_from_tensors(restored_tensors)
-        pass
-
-    def call(self, inputs, training=None, mask=None):
-        res = tf.convert_to_tensor( self.policy(inputs) )
+    
+    def call(self, inputs):  
+        res = tf.convert_to_tensor( self.policy_model(inputs) )
         res = tf.squeeze(res, axis=1)
         return res
 
@@ -45,9 +30,9 @@ class A2CDiscreteAgent(Agent):
         self.std_state_dependent = std_state_dependent 
         self.entropy_coefficient = entropy_coeff
 
-        super().__init__(*agent_params) 
- 
         self.discrete_values = discrete_values
+        super().__init__(*agent_params) 
+  
 
         # indices
         self.finished = 0
@@ -55,16 +40,15 @@ class A2CDiscreteAgent(Agent):
 
     def get_actor(self):
         self.input_layer = layers.Input(shape=self.state_shape)
-        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)
-
+        
+        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer) 
+         
         self.final_layers = []
         for i in range(self.action_shape[0]):
-            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(
-                layers.Dense(self.units_per_layer_actor, activation='relu')(self.hidden_layer)))
-
+            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(layers.Dense(64, activation='relu')(self.hidden_layer))) 
+        
         self.policy = Model(inputs=self.input_layer, outputs=self.final_layers)
-
         return A2CDiscreteActor(self.policy)
 
     def get_critic(self):
@@ -91,10 +75,10 @@ class A2CDiscreteAgent(Agent):
         return 2*np.array(actions)/self.discrete_values-1
 
     @tf.function
-    def __train(self, state, action, reward, next_state, done, grad_clip, entropy_coeff=0.00):
+    def __train(self, state, action, reward, next_state, done, grad_clip=-1, entropy_coeff=0.00):
         action_index = int(((action+1)*self.discrete_values)/2)
         with tf.GradientTape(persistent=True) as tape:
-
+  
             pre_means = self.actor(state)  # array of tensors
             # pre_means is a vector of tensors, each tensor is a vector of probabilities
             value = self.critic(state)
@@ -138,9 +122,9 @@ class A2CDiscreteAgent(Agent):
         del tape
 
     def train(self, state, action, reward, next_state, done):
-        state = tf.convert_to_tensor(state, dtype=tf.float32)
+        state = tf.convert_to_tensor([state], dtype=tf.float32)
         action = tf.convert_to_tensor(action, dtype=tf.float32)
         reward = tf.convert_to_tensor(reward, dtype=tf.float32)
         next_state = tf.convert_to_tensor([next_state], dtype=tf.float32)
-        done = tf.convert_to_tensor(done, dtype=tf.float32)
+        done = tf.convert_to_tensor(done, dtype=tf.float32) 
         self.__train(state, action, reward, next_state, done)
