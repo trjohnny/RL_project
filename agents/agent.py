@@ -62,14 +62,10 @@ class Agent(ABC):
     def train(self, state, action, reward, next_state, done):
         pass
 
-    def __run_episode(self, env, episode):
+    def __run_episode(self, env, episode): 
         state, info = env.reset()
-
-        if env.unwrapped.spec.id == "PandaPushDense-v3":
-            state = np.concatenate([state['observation'][:9], state['desired_goal']], dtype=np.float32)
-        else:
-            state = np.concatenate([state['observation'][:6], state['desired_goal']], dtype=np.float32)
-
+        state = np.concatenate([state['observation'], state['desired_goal']], dtype=np.float32)
+ 
         state_tensor = tf.convert_to_tensor([state], dtype='float32')
 
         total_reward = 0
@@ -90,7 +86,7 @@ class Agent(ABC):
                 reward -= 0.5 * np.linalg.norm(next_state['observation'][:3] - next_state['achieved_goal'])
                 reward -= 0.1 * np.linalg.norm(action) ** 2
 
-            next_state = np.concatenate([next_state['observation'][:6], next_state['desired_goal']], dtype=np.float32)
+            next_state = np.concatenate([next_state['observation'], next_state['desired_goal']], dtype=np.float32)
 
             self.train(state, action, reward, next_state, done)
 
@@ -117,7 +113,7 @@ class Agent(ABC):
             mod = 1
 
         for episode in range(1, episodes + 1):
-
+ 
             reward = self.__run_episode(env, episode)
 
             if reward is not None:
