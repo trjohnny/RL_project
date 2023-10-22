@@ -2,7 +2,7 @@ from agents.agent import Agent
 import numpy as np
 import tensorflow as tf
 from agents.off_policy.replay_buffer import ReplayBuffer
-from tensorflow.python.keras import Model, layers
+from tensorflow import keras
 
 
 class OUActionNoise:
@@ -37,7 +37,7 @@ class DDPGAgent(Agent):
     def get_algo(self):
         pass
 
-    def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000_000, batch_size=64,
+    def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000, batch_size=64,
                  start_training=0, noise_std=.2):
 
         super().__init__(*agent_params)
@@ -63,39 +63,38 @@ class DDPGAgent(Agent):
         self.dones = 0
 
     def get_actor(self):
-        # Initialize weights between -3e-3 and 3-e3
         last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
 
-        inputs = layers.Input(shape=self.state_shape)
+        inputs = keras.layers.Input(shape=self.state_shape)
         hidden = inputs
 
         for i in range(int(self.n_layers_actor)):
-            hidden = layers.Dense(int(self.units_per_layer_actor), activation=self.activation_actor)(hidden)
+            hidden = keras.layers.Dense(int(self.units_per_layer_actor), activation=self.activation_actor)(hidden)
 
-        outputs = layers.Dense(self.action_shape[0], activation="tanh", kernel_initializer=last_init)(hidden)
+        outputs = keras.layers.Dense(self.action_shape[0], activation="tanh", kernel_initializer=last_init)(hidden)
 
-        model = Model(inputs, outputs)
+        model = keras.Model(inputs, outputs)
 
         return model
 
     def get_critic(self):
         # State as input
-        state_input = layers.Input(shape=self.state_shape)
-        state_out = layers.Dense(16, activation="relu")(state_input)
-        state_out = layers.Dense(32, activation="relu")(state_out)
+        state_input = keras.layers.Input(shape=self.state_shape)
+        state_out = keras.layers.Dense(16, activation="relu")(state_input)
+        state_out = keras.layers.Dense(32, activation="relu")(state_out)
 
         # Action as input
-        action_input = layers.Input(shape=self.action_shape)
-        action_out = layers.Dense(32, activation="relu")(action_input)
+        action_input = keras.layers.Input(shape=self.action_shape)
+        action_out = keras.layers.Dense(32, activation="relu")(action_input)
 
         # Both are passed through separate layer before concatenating
-        concat = layers.Concatenate()([state_out, action_out])
+        concat = keras.layers.Concatenate()([state_out, action_out])
         hidden = concat
 
         for i in range(int(self.n_layers_critic)):
-            hidden = layers.Dense(int(self.units_per_layer_critic), activation=self.activation_critic)(hidden)
+            hidden = keras.layers.Dense(int(self.units_per_layer_critic), activation=self.activation_critic)(hidden)
 
-        outputs = layers.Dense(1)(hidden)
+        outputs = keras.layers.Dense(1)(hidden)
 
         # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
