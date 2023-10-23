@@ -8,8 +8,7 @@ from tensorflow import keras
 
 
 class A2CActor(keras.Model):
-     
-    
+
     def __init__(self, policy, independent_log_stds, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -32,17 +31,16 @@ class A2CNStepAheadAgent(Agent):
     @staticmethod
     def get_algo():
         return 'A2C_N_STEP_AHEAD'
-    
-    def __init__(self, *agent_params, n_steps=5, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
 
+    def __init__(self, *agent_params, n_steps=5, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
 
         self.log_std_init = log_std_init
         self.std_state_dependent = std_state_dependent
         self.entropy_coefficient = entropy_coeff
 
         super().__init__(*agent_params)
-          
-        self.n_steps = n_steps 
+
+        self.n_steps = n_steps
 
         # indices
         self.finished = 0
@@ -98,6 +96,7 @@ class A2CNStepAheadAgent(Agent):
         model = tf.keras.Model(input_layer, outputs)
 
         return model
+
     def act(self, state):
         means, std_devs = self.actor(state)
         action = np.random.normal(loc=means, scale=std_devs)
@@ -135,7 +134,7 @@ class A2CNStepAheadAgent(Agent):
 
         return n_step_reward, done, tf.convert_to_tensor([curr_state]), actual_steps
 
-    def __run_episode(self, env, episode): 
+    def __run_episode(self, env, episode):
         state, info = env.reset()
 
         state = np.concatenate([state['observation'], state['desired_goal']], dtype=np.float32)
@@ -173,7 +172,7 @@ class A2CNStepAheadAgent(Agent):
             self.__train(state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, actual_steps + 1)
             state = next_state
             total_reward += reward
-            num_step += 1 
+            num_step += 1
 
         if not done:
             self.finished = episode
@@ -183,46 +182,48 @@ class A2CNStepAheadAgent(Agent):
         return total_reward
 
     @tf.function
-    def __train(self, state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, n_steps, entropy_coeff=0.01, grad_clip = -1): 
+    def __train(self, state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, n_steps,
+                entropy_coeff=0.01, grad_clip=-1):
         with tf.GradientTape(persistent=True) as tape:
- 
+
             means, std_devs = self.actor(state)
             value = self.critic(state)
-        
+
             action_prob = tf.exp(-0.5 * tf.square((action - means) / std_devs)) / (std_devs * tf.sqrt(2. * np.pi))
             action_prob = tf.reduce_prod(action_prob, axis=1, keepdims=True)
-            
+
             n_step_value = (1 - done_cur) * self.critic(n_step_state)
-            
-            
-            advantage = n_steps_reward + (self.gamma**n_steps) * n_step_value - value
-            
+
+            advantage = n_steps_reward + (self.gamma ** n_steps) * n_step_value - value
+
             # Compute the entropy of the current policy
             entropy = 0.5 * (tf.math.log(2 * np.pi * std_devs ** 2) + 1)
             entropy = tf.reduce_sum(entropy, keepdims=True)
-            
+
             # Compute the actor loss
-            actor_loss = -tf.reduce_mean(tf.math.log(tf.maximum(action_prob, 5e-6)) * tf.stop_gradient(advantage) + entropy_coeff * entropy)
+            actor_loss = -tf.reduce_mean(
+                tf.math.log(tf.maximum(action_prob, 5e-6)) * tf.stop_gradient(advantage) + entropy_coeff * entropy)
 
             # Compute the critic loss 
-            critic_loss = tf.reduce_mean(tf.square(tf.stop_gradient(n_steps_reward + (self.gamma**n_steps) * n_step_value) - value))
+            critic_loss = tf.reduce_mean(
+                tf.square(tf.stop_gradient(n_steps_reward + (self.gamma ** n_steps) * n_step_value) - value))
 
         # Compute and apply the gradients for the actor loss
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-        
+
         # Clip the gradients
         if grad_clip != -1:
             actor_grads, _ = tf.clip_by_global_norm(actor_grads, grad_clip)
-            
+
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
         # Compute and apply the gradients for the critic loss
         critic_grads = tape.gradient(critic_loss, self.critic.trainable_variables)
-        
+
         # Clip the gradients
         if grad_clip != -1:
             critic_grads, _ = tf.clip_by_global_norm(critic_grads, grad_clip)
-            
+
         self.critic_optimizer.apply_gradients(zip(critic_grads, self.critic.trainable_variables))
 
         # Clear the tape to free up resources
@@ -231,30 +232,7 @@ class A2CNStepAheadAgent(Agent):
     def train(self, state, action, reward, next_state, done):
         return
 
- 
     def train_agent(self, env, episodes, verbose=0):
         env = env.env  # block the truncated 
 
-        rewards = []
-        mod = episodes - 1
-        if verbose == 1:
-            mod = 100
-        elif verbose == 2:
-            mod = 10
-        elif verbose == 3:
-            mod = 1
-
-        for episode in range(1, episodes + 1):
- 
-            reward = self.__run_episode(env, episode)
-
-            if reward is not None:
-                rewards.append(reward)
-            else:
-                continue
-
-            # Print the reward for each episode
-            if episode % mod == 0:
-                print(f'Episode {episode}: Reward: {reward:.2f}')
-
-        return rewards 
+        return super().train_agent(env, episodes, verbose)
