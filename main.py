@@ -63,7 +63,7 @@ if __name__ == "__main__":
     parser.add_argument('--algo', type=str, required=True, help='Algorithm to use', choices=['A2C', 'DDPG', 'A2C_N_STEP_AHEAD', 'A2C_DISCRETE'])
     parser.add_argument('-v', '--verbose', type=int, help='Level of verbosity (1, 2, 3)', choices=[1, 2, 3])
     parser.add_argument('--episodes', type=int, required=True, help='Number of episodes')
-    parser.add_argument('-n', type=int, required=True, help='Number of steps ahead for TD(n) actor critic')
+    parser.add_argument('-n', type=int, help='Number of steps ahead for TD(n) actor critic')
     parser.add_argument('--hyperopt', type=str, help='Specify hyperparameter optimization algorithm (TPE or DEA)')
     parser.add_argument('--seed', type=int, help='Seed trials for TPE')
     parser.add_argument('--trials', type=int, help='Total trials for TPE > seed')
