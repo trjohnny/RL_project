@@ -1,3 +1,4 @@
+import logging
 from abc import abstractmethod
 from abc import ABC
 import tensorflow as tf
@@ -77,14 +78,12 @@ class Agent(ABC):
             action = self.act(state_tensor)
 
             next_state, reward, done, truncated, info = env.step(action)
-            reward *= 10
-
-            #if done and num_step <= 1:
-                #return None
 
             if env.unwrapped.spec.id == "PandaPushDense-v3":
                 reward -= 0.5 * np.linalg.norm(next_state['observation'][:3] - next_state['achieved_goal'])
                 reward -= 0.1 * np.linalg.norm(action) ** 2
+
+            reward *= 10
 
             next_state = np.concatenate([next_state['observation'], next_state['desired_goal']], dtype=np.float32)
 
@@ -102,7 +101,7 @@ class Agent(ABC):
 
         return total_reward
 
-    def train_agent(self, env, episodes, verbose=0):
+    def train_agent(self, env, episodes, verbose=1):
         rewards = []
         mod = episodes - 1
         if verbose == 1:

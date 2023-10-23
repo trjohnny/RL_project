@@ -1,3 +1,4 @@
+import logging
 from abc import ABC
 import numpy as np
 import tensorflow as tf
@@ -149,14 +150,12 @@ class A2CNStepAheadAgent(Agent):
             action = self.act(state)
             next_state, reward, done, truncated, info = env.step(action)
 
-            if done and num_step <= 2:
-                return None
-
             if env.unwrapped.spec.id == "PandaPushDense-v3":
                 reward -= 0.5 * np.linalg.norm(next_state['observation'][:3] - next_state['achieved_goal'])
 
                 reward -= 0.1 * np.linalg.norm(action) ** 2
 
+            reward *= 10
             next_state = np.concatenate([next_state['observation'], next_state['desired_goal']], dtype=np.float32)
 
             action = tf.convert_to_tensor(action, dtype='float32')
@@ -164,7 +163,6 @@ class A2CNStepAheadAgent(Agent):
 
             n_steps_reward, done_cur, n_step_state, actual_steps = self.n_step_reward(next_state, done, reward,
                                                                                       env, self)
-
             next_state = tf.convert_to_tensor([next_state], dtype='float32')
             n_step_state = tf.convert_to_tensor(n_step_state, dtype='float32')
             n_steps_reward = tf.convert_to_tensor(n_steps_reward, dtype='float32')
@@ -232,7 +230,29 @@ class A2CNStepAheadAgent(Agent):
     def train(self, state, action, reward, next_state, done):
         return
 
-    def train_agent(self, env, episodes, verbose=0):
+    def train_agent(self, env, episodes, verbose=1):
         env = env.env  # block the truncated 
 
-        return super().train_agent(env, episodes, verbose)
+        rewards = []
+        mod = episodes - 1
+        if verbose == 1:
+            mod = 100
+        elif verbose == 2:
+            mod = 10
+        elif verbose == 3:
+            mod = 1
+
+        for episode in range(1, episodes + 1):
+
+            reward = self.__run_episode(env, episode)
+
+            if reward is not None:
+                rewards.append(reward)
+            else:
+                continue
+
+            # Print the reward for each episode
+            if episode % mod == 0:
+                print(f'Episode {episode}: Reward: {reward:.2f}')
+
+        return rewards
