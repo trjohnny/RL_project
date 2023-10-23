@@ -25,5 +25,7 @@ Iperparameter optimization is still under review but will be ready soon :)
 ## References
 <a id="1">[1]</a> 
 Gallouédec, Quentin and Cazin, Nicolas and Dellandréa, Emmanuel and Chen, Liming
+
 panda-gym: Open-Source Goal-Conditioned Environments for Robotic Learning
+
 4th Robot Learning Workshop: Self-Supervised and Lifelong Learning at NeurIPS, 2021
