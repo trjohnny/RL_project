@@ -11,12 +11,12 @@ class Agent(ABC):
                  n_actions,
                  lower_bound,
                  upper_bound,
-                 gamma=.80,
-                 actor_learning_rate=1e-3,
-                 critic_learning_rate=1e-3,
-                 n_layers_actor=2,
+                 gamma=.85,
+                 actor_learning_rate=1e-4,
+                 critic_learning_rate=5e-4,
+                 n_layers_actor=3,
                  n_layers_critic=2,
-                 units_per_layer_actor=64,
+                 units_per_layer_actor=80,
                  units_per_layer_critic=64):
 
         self.gamma = gamma

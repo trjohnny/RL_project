@@ -29,7 +29,7 @@ class A2CAgent(Agent):
     def get_algo():
         return 'A2C'
 
-    def __init__(self, *agent_params, std_state_dependent=False, log_std_init=-0.5, entropy_coeff=1e-2):
+    def __init__(self, *agent_params, std_state_dependent=False, log_std_init=-0.7, entropy_coeff=1e-2):
         self.std_state_dependent = std_state_dependent
         self.log_std_init = log_std_init
         self.entropy_coefficient = entropy_coeff
