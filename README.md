@@ -18,9 +18,11 @@ py main.py --env [environment] --algo [algorithm] --verbose [1,2 or 3] --episode
 * verbose: 1 (print every 100 episodes) | 2 (every 10) | 3 (print every episode)
 * episodes: the number of episodes to run
 
+Please note: To test the repo with the notebook and change hyperparameters, pass them to the constructor of the Agent.
+
 ## Follow up
 
-Iperparameter optimization is still under review but will be ready soon :)
+Hyperparameter optimization is still under review but will be ready soon :)
 
 ## References
 <a id="1">[1]</a> 
