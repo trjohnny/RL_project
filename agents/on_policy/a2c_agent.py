@@ -96,7 +96,6 @@ class A2CAgent(Agent):
         action = np.random.normal(loc=means, scale=std_devs)
         return action.flatten()
 
-    @tf.function
     def __train(self, state, action, reward, next_state, done, grad_clip=-1, entropy_coeff=0.1):
         with tf.GradientTape(persistent=True) as tape:
             means, std_devs = self.actor(state)

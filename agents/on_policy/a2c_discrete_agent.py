@@ -74,7 +74,6 @@ class A2CDiscreteAgent(Agent):
 
         return 2*np.array(actions)/self.discrete_values-1
 
-    @tf.function
     def __train(self, state, action, reward, next_state, done, grad_clip=-1, entropy_coeff=0.1):
         action_index = int(((action+1)*self.discrete_values)/2)
         with tf.GradientTape(persistent=True) as tape:

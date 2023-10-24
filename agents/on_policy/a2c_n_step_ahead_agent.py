@@ -179,7 +179,6 @@ class A2CNStepAheadAgent(Agent):
 
         return total_reward
 
-    @tf.function
     def __train(self, state, action, reward, next_state, n_steps_reward, done_cur, n_step_state, n_steps,
                 entropy_coeff=0.01, grad_clip=-1):
         with tf.GradientTape(persistent=True) as tape:

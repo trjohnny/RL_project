@@ -100,7 +100,6 @@ class DDPGAgent(Agent):
 
         return model
 
-    @tf.function
     def __update_target(self, target_weights, weights, tau):
         for (a, b) in zip(target_weights, weights):
             a.assign(b * tau + a * (1 - tau))
@@ -116,7 +115,6 @@ class DDPGAgent(Agent):
 
         return np.squeeze(legal_action)
 
-    @tf.function
     def __train(self, state, action, reward, next_state, done):
 
         with tf.GradientTape() as tape:
