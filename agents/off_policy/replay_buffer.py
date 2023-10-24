@@ -3,14 +3,14 @@ import tensorflow as tf
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_capacity=10000, batch_size=128):
+    def __init__(self, state_dim, buffer_capacity=1_000_000, batch_size=128):
         self.buffer_capacity = int(buffer_capacity)
         self.batch_size = int(batch_size)
         self.buffer_counter = 0
-        self.state_buffer = np.zeros((self.buffer_capacity, 9))
+        self.state_buffer = np.zeros((self.buffer_capacity, state_dim))
         self.action_buffer = np.zeros((self.buffer_capacity, 3))
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        self.next_state_buffer = np.zeros((self.buffer_capacity, 9))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, state_dim))
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
 
     def add_experience(self, obs_tuple):

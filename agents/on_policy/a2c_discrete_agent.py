@@ -23,7 +23,7 @@ class A2CDiscreteAgent(Agent):
     def get_algo():
         return 'A2C_DISCRETE'
     
-    def __init__(self, *agent_params, discrete_values=50, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
+    def __init__(self, *agent_params, discrete_values=8, entropy_coeff=1e-2, log_std_init=-0.5, std_state_dependent=False):
 
 
         self.log_std_init = log_std_init
@@ -41,12 +41,12 @@ class A2CDiscreteAgent(Agent):
     def get_actor(self):
         self.input_layer = layers.Input(shape=self.state_shape)
         
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.input_layer)
-        self.hidden_layer = layers.Dense(64, activation='relu')(self.hidden_layer) 
+        self.hidden_layer = layers.Dense(80, activation='relu')(self.input_layer)
+        self.hidden_layer = layers.Dense(80, activation='relu')(self.hidden_layer)
          
         self.final_layers = []
         for i in range(self.action_shape[0]):
-            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(layers.Dense(64, activation='relu')(self.hidden_layer))) 
+            self.final_layers.append(layers.Dense(self.discrete_values, activation='softmax')(layers.Dense(80, activation='relu')(self.hidden_layer)))
         
         self.policy = Model(inputs=self.input_layer, outputs=self.final_layers)
         return A2CDiscreteActor(self.policy)
@@ -75,7 +75,7 @@ class A2CDiscreteAgent(Agent):
         return 2*np.array(actions)/self.discrete_values-1
 
     @tf.function
-    def __train(self, state, action, reward, next_state, done, grad_clip=-1, entropy_coeff=0.00):
+    def __train(self, state, action, reward, next_state, done, grad_clip=-1, entropy_coeff=0.1):
         action_index = int(((action+1)*self.discrete_values)/2)
         with tf.GradientTape(persistent=True) as tape:
   

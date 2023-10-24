@@ -37,8 +37,8 @@ class DDPGAgent(Agent):
     def get_algo(self):
         pass
 
-    def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000, batch_size=64,
-                 start_training=0, noise_std=.2):
+    def __init__(self, *agent_params, tau=0.005, buffer_size=1_000_000, batch_size=128,
+                 start_training=1_000, noise_std=.2):
 
         super().__init__(*agent_params)
 
@@ -54,7 +54,7 @@ class DDPGAgent(Agent):
 
         self.target_critic.set_weights(self.critic.get_weights())
 
-        self.replay_buffer = ReplayBuffer(buffer_size, batch_size)
+        self.replay_buffer = ReplayBuffer(self.state_shape[0], buffer_size, batch_size)
 
         self.start_training = start_training
 
@@ -81,11 +81,10 @@ class DDPGAgent(Agent):
         # State as input
         state_input = keras.layers.Input(shape=self.state_shape)
         state_out = keras.layers.Dense(16, activation="relu")(state_input)
-        state_out = keras.layers.Dense(32, activation="relu")(state_out)
 
         # Action as input
         action_input = keras.layers.Input(shape=self.action_shape)
-        action_out = keras.layers.Dense(32, activation="relu")(action_input)
+        action_out = keras.layers.Dense(16, activation="relu")(action_input)
 
         # Both are passed through separate layer before concatenating
         concat = keras.layers.Concatenate()([state_out, action_out])

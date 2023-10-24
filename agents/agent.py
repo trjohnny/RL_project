@@ -11,13 +11,13 @@ class Agent(ABC):
                  n_actions,
                  lower_bound,
                  upper_bound,
-                 gamma=.85,
+                 gamma=.87,
                  actor_learning_rate=1e-4,
-                 critic_learning_rate=5e-4,
+                 critic_learning_rate=1e-3,
                  n_layers_actor=3,
                  n_layers_critic=2,
                  units_per_layer_actor=80,
-                 units_per_layer_critic=64):
+                 units_per_layer_critic=80):
 
         self.gamma = gamma
         self.state_shape = (n_states,)
@@ -65,7 +65,7 @@ class Agent(ABC):
 
     def __run_episode(self, env, episode): 
         state, info = env.reset()
-        state = np.concatenate([state['observation'], state['desired_goal']], dtype=np.float32)
+        state = np.concatenate([state['observation'][:9], state['desired_goal']], dtype=np.float32)
  
         state_tensor = tf.convert_to_tensor([state], dtype='float32')
 
@@ -85,7 +85,7 @@ class Agent(ABC):
 
             reward *= 10
 
-            next_state = np.concatenate([next_state['observation'], next_state['desired_goal']], dtype=np.float32)
+            next_state = np.concatenate([next_state['observation'][:9], next_state['desired_goal']], dtype=np.float32)
 
             self.train(state, action, reward, next_state, done)
 
